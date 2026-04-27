@@ -4,6 +4,43 @@ import { User, MapPin, CheckCircle } from 'lucide-react-native';
 
 export default function App() {
   const [online, setOnline] = useState(true);
+  const [currentRide, setCurrentRide] = useState<any>(null);
+
+  // Poll for new ride requests
+  React.useEffect(() => {
+    if (!online || currentRide) return;
+
+    const interval = setInterval(async () => {
+      try {
+        const response = await fetch('http://localhost:3000/api/rides?status=REQUESTED');
+        const data = await response.json();
+        if (data.length > 0) {
+          setCurrentRide(data[0]); // Just pick the first one for now
+        }
+      } catch (error) {
+        console.error('Fetch requests error:', error);
+      }
+    }, 5000);
+
+    return () => clearInterval(interval);
+  }, [online, currentRide]);
+
+  const acceptRide = async () => {
+    if (!currentRide) return;
+    try {
+      const response = await fetch(`http://localhost:3000/api/rides/${currentRide.id}`, {
+        method: 'PATCH',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ status: 'ACCEPTED', driverId: 'driver-id-placeholder' }),
+      });
+      if (response.ok) {
+        alert('Ride Accepted!');
+        // In a real app, you'd move to the navigation screen
+      }
+    } catch (error) {
+      console.error('Accept ride error:', error);
+    }
+  };
 
   return (
     <SafeAreaView style={styles.container}>
@@ -33,7 +70,7 @@ export default function App() {
         </View>
       </View>
 
-      {online && (
+      {online && currentRide && (
         <View style={styles.requestSection}>
           <View style={styles.requestCard}>
             <View style={styles.requestHeader}>
@@ -42,10 +79,10 @@ export default function App() {
             </View>
             <View style={styles.requestDetails}>
               <MapPin size={18} color="#666" />
-              <Text style={styles.requestLocation}>Main Street 123</Text>
+              <Text style={styles.requestLocation}>{currentRide.originAddress}</Text>
             </View>
-            <Text style={styles.price}>Estimate: Rs. 450</Text>
-            <TouchableOpacity style={styles.acceptButton}>
+            <Text style={styles.price}>Estimate: Rs. {currentRide.price}</Text>
+            <TouchableOpacity style={styles.acceptButton} onPress={acceptRide}>
               <Text style={styles.buttonText}>Accept Ride</Text>
             </TouchableOpacity>
           </View>

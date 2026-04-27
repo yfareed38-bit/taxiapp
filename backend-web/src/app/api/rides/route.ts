@@ -1,9 +1,13 @@
 import { NextResponse } from 'next/server';
 import { prisma } from '@/lib/prisma';
+import { calculateRoute, calculatePrice } from '@/lib/routing';
 
 export async function POST(req: Request) {
   try {
-    const { riderId, originAddress, originLat, originLng, destAddress, destLat, destLng, price } = await req.json();
+    const { riderId, originAddress, originLat, originLng, destAddress, destLat, destLng } = await req.json();
+
+    const { distance, duration } = await calculateRoute(originLat, originLng, destLat, destLng);
+    const price = calculatePrice(distance, duration);
 
     const ride = await prisma.ride.create({
       data: {
@@ -14,6 +18,8 @@ export async function POST(req: Request) {
         destAddress,
         destLat,
         destLng,
+        distance,
+        duration,
         price,
         status: 'REQUESTED',
       },

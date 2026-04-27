@@ -4,6 +4,34 @@ import { MapPin, Search, Navigation } from 'lucide-react-native';
 
 export default function App() {
   const [destination, setDestination] = useState('');
+  const [rideStatus, setRideStatus] = useState<string | null>(null);
+  const [rideId, setRideId] = useState<string | null>(null);
+
+  // Polling for ride status updates
+  React.useEffect(() => {
+    if (!rideId) return;
+
+    const interval = setInterval(async () => {
+      try {
+        const response = await fetch(`http://localhost:3000/api/rides/${rideId}`);
+        const data = await response.json();
+        setRideStatus(data.status);
+        if (data.status === 'COMPLETED' || data.status === 'CANCELLED') {
+          clearInterval(interval);
+        }
+      } catch (error) {
+        console.error('Polling error:', error);
+      }
+    }, 3000);
+
+    return () => clearInterval(interval);
+  }, [rideId]);
+
+  const requestRide = async () => {
+    // Simulated ride request
+    setRideStatus('REQUESTED');
+    setRideId('temp-ride-id-123'); // This would come from actual API call
+  };
 
   return (
     <SafeAreaView style={styles.container}>
@@ -18,22 +46,34 @@ export default function App() {
         {/* Placeholder for Map */}
         <View style={styles.mapPlaceholder}>
           <Navigation size={48} color="#0056b3" />
-          <Text style={styles.mapText}>OpenStreetMap Loading...</Text>
+          <Text style={styles.mapText}>
+            {rideStatus ? `Ride Status: ${rideStatus}` : 'OpenStreetMap Loading...'}
+          </Text>
         </View>
       </View>
 
-      <View style={styles.searchSection}>
-        <View style={styles.searchBar}>
-          <Search size={20} color="#666" />
-          <Text style={styles.searchText}>Where to?</Text>
-        </View>
-      </View>
+      {!rideStatus ? (
+        <>
+          <View style={styles.searchSection}>
+            <View style={styles.searchBar}>
+              <Search size={20} color="#666" />
+              <Text style={styles.searchText}>Where to?</Text>
+            </View>
+          </View>
 
-      <View style={styles.actionSection}>
-        <TouchableOpacity style={styles.button}>
-          <Text style={styles.buttonText}>Request Ride (Cash)</Text>
-        </TouchableOpacity>
-      </View>
+          <View style={styles.actionSection}>
+            <TouchableOpacity style={styles.button} onPress={requestRide}>
+              <Text style={styles.buttonText}>Request Ride (Cash)</Text>
+            </TouchableOpacity>
+          </View>
+        </>
+      ) : (
+        <View style={styles.actionSection}>
+          <View style={[styles.button, { backgroundColor: '#ffc107' }]}>
+            <Text style={[styles.buttonText, { color: '#000' }]}>Finding Driver...</Text>
+          </View>
+        </View>
+      )}
     </SafeAreaView>
   );
 }
